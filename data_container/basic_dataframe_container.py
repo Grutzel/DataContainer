@@ -29,6 +29,7 @@ class BasicDataContainer:
     _dataframe: pd.DataFrame = field(init=False, default=pd.DataFrame)
     _mapping_dict: dict = field(default_factory=dict)
     _check_dict: dict = field(default_factory=dict)
+    _nan_filler: dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.__extract_information()
@@ -58,9 +59,6 @@ class BasicDataContainer:
     def empty(self) -> bool:
         return self.dataframe.empty
 
-    @property
-    def empty(self) -> bool:
-        return self.dataframe.empty
 
     @columns.setter
     def columns(self, value):
@@ -78,7 +76,6 @@ class BasicDataContainer:
             self._default_columns[col] = value.default
         self._columns.append(col)
 
-
     def __extract_metadata(self, col: str, metadata, **kwargs):
         """ Extracts the columns where a mapping has to be done
         """
@@ -87,9 +84,23 @@ class BasicDataContainer:
                 if key == 'check':
                     self.__add_check(col, value, **kwargs)
                 elif key == 'map':
-                    self._mapping_dict[col] = value
+                    self._add_to_mapping(cols_to_map=value, col=col, **kwargs)
+                elif key == 'nan':
+                    self._fill_nan_dict(col=col, value=value)
                 else:
                     print('Key feature not implemented.')
+
+    def _fill_nan_dict(self, col: str, value, **kwargs):
+        self._nan_filler['age'] = value
+
+    def _add_to_mapping(self, col: str, cols_to_map: str | list, **kwargs):
+        if isinstance(cols_to_map, list):
+            for col_to_map in cols_to_map:
+                self._mapping_dict[col_to_map] = col
+        elif isinstance(cols_to_map, str):
+            self._mapping_dict[cols_to_map] = col
+        else:
+            raise TypeError('The column(s) that should be mapped, need to be str and list.')
 
     def __add_check(self, col: str, check: list, **kwargs):
         """ Will be implemented in future releases
@@ -103,7 +114,6 @@ class BasicDataContainer:
 
     def append(self, df: pd.DataFrame):
         df = self.check_dataframe(df)
-
         if self.empty:
             self._dataframe = df
         else:
@@ -112,6 +122,23 @@ class BasicDataContainer:
     def check_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.reset_index(drop=True)
         df = self.check_for_mapping(df)
+        df = self.fill_default_columns(df)
+        return df
+
+    def fill_nan_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        for col, default_value in self._nan_filler.items():
+            df[col] = df[col].fillna(default_value)
+        return df
+
+
+    def check_data_type(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df
+
+
+    def fill_default_columns(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        for col, default_value in self._default_columns.items():
+            if col not in df.columns:
+                df[col] = default_value
         return df
 
     def check_for_mapping(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -120,5 +147,5 @@ class BasicDataContainer:
         :param df:
         :return:
         """
-
+        df = df.rename(columns=self._mapping_dict)
         return df
