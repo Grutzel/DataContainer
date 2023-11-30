@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field, MISSING
+from dataclasses import dataclass, field, MISSING, fields, Field
 import pandas as pd
+
 
 @dataclass
 class BasicDataInformation:
@@ -13,6 +14,12 @@ class BasicDataInformation:
     """
     pass
 
+    @classmethod
+    @property
+    def dtypes(cls) -> dict:
+        field_types = {f.name: f.type for f in fields(cls)}
+        return field_types
+
 
 @dataclass
 class BasicDataContainer:
@@ -23,7 +30,9 @@ class BasicDataContainer:
     Args:
 
     """
+
     information: BasicDataInformation = BasicDataInformation
+    dtypes: dict = field(default_factory=dict)
     _columns: list = field(default_factory=list)
     _default_columns: dict = field(default_factory=dict)
     _dataframe: pd.DataFrame = field(init=False, default=pd.DataFrame)
@@ -32,6 +41,7 @@ class BasicDataContainer:
     _nan_filler: dict = field(default_factory=dict)
 
     def __post_init__(self):
+        self.dtypes = self.information.dtypes
         self.__extract_information()
         self._dataframe = pd.DataFrame(columns=self.columns)
 
@@ -59,39 +69,36 @@ class BasicDataContainer:
     def empty(self) -> bool:
         return self.dataframe.empty
 
-
     @columns.setter
     def columns(self, value):
         raise ValueError('You are not allowed to change the columns')
 
     def __extract_information(self, **kwargs):
-        for key, value in self.information.__dataclass_fields__.items():
-            self.__extract_columns(key, value, **kwargs)
-            self.__extract_metadata(key, value.metadata)
+        for f in fields(self.information):
+            self.__extract_columns(f, **kwargs)
+            self.__extract_metadata(f, **kwargs)
 
-    def __extract_columns(self, col: str, value, **kwargs):
+    def __extract_columns(self, f: Field, **kwargs):
         """ Extracts the columns and default columns given in the DataInformation.
         """
-        if not value.default == MISSING:
-            self._default_columns[col] = value.default
-        self._columns.append(col)
+        if not f.default == MISSING:
+            self._default_columns[f.name] = f.default
+        self._columns.append(f.name)
 
-    def __extract_metadata(self, col: str, metadata, **kwargs):
+    def __extract_metadata(self, f: Field, **kwargs):
         """ Extracts the columns where a mapping has to be done
         """
-        if len(metadata) > 0:
-            for key, value in metadata.items():
-                if key == 'check':
-                    self.__add_check(col, value, **kwargs)
-                elif key == 'map':
-                    self._add_to_mapping(cols_to_map=value, col=col, **kwargs)
+        if len(f.metadata) > 0:
+            for key, value in f.metadata.items():
+                if key == 'map':
+                    self._add_to_mapping(col=f.name, cols_to_map=value, **kwargs)
                 elif key == 'nan':
-                    self._fill_nan_dict(col=col, value=value)
+                    self._fill_nan_dict(col=f.name, value=value)
                 else:
                     print('Key feature not implemented.')
 
     def _fill_nan_dict(self, col: str, value, **kwargs):
-        self._nan_filler['age'] = value
+        self._nan_filler[col] = value
 
     def _add_to_mapping(self, col: str, cols_to_map: str | list, **kwargs):
         if isinstance(cols_to_map, list):
@@ -102,38 +109,29 @@ class BasicDataContainer:
         else:
             raise TypeError('The column(s) that should be mapped, need to be str and list.')
 
-    def __add_check(self, col: str, check: list, **kwargs):
-        """ Will be implemented in future releases
 
-        :param col:
-        :param check:
-        :param kwargs:
-        :return:
-        """
-        pass
-
-    def append(self, df: pd.DataFrame):
-        df = self.check_dataframe(df)
+    def append(self, df: pd.DataFrame, **kwargs):
+        df = self.check_dataframe(df, **kwargs)
         if self.empty:
             self._dataframe = df
         else:
             self._dataframe = pd.concat([self.dataframe, df], ignore_index=True)
 
-    def check_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+    def check_dataframe(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df = df.reset_index(drop=True)
-        df = self.check_for_mapping(df)
-        df = self.fill_default_columns(df)
+        df = self.check_for_mapping(df, **kwargs)
+        df = self.fill_default_columns(df, **kwargs)
+        df = self.fill_nan_values(df, **kwargs)
+        df = self.check_data_type(df, **kwargs)
         return df
 
-    def fill_nan_values(self, df: pd.DataFrame) -> pd.DataFrame:
-        for col, default_value in self._nan_filler.items():
-            df[col] = df[col].fillna(default_value)
+    def fill_nan_values(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        df = df.fillna(self._nan_filler)
         return df
 
-
-    def check_data_type(self, df: pd.DataFrame) -> pd.DataFrame:
+    def check_data_type(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        df = df.astype(self.dtypes)
         return df
-
 
     def fill_default_columns(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         for col, default_value in self._default_columns.items():
@@ -141,7 +139,7 @@ class BasicDataContainer:
                 df[col] = default_value
         return df
 
-    def check_for_mapping(self, df: pd.DataFrame) -> pd.DataFrame:
+    def check_for_mapping(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """ Checks if columns have to be mapped, ore renamed
 
         :param df:

@@ -6,7 +6,7 @@ import numpy as np
 
 
 @pytest.fixture
-def test_data_information() -> BasicDataInformation:
+def data_information_fixture() -> BasicDataInformation:
     @dataclass
     class TestDataInformation(BasicDataInformation):
         name: str
@@ -17,7 +17,7 @@ def test_data_information() -> BasicDataInformation:
 
 
 @pytest.fixture
-def test_data_frame() -> pd.DataFrame:
+def data_frame_fixture_mapping_and_default() -> pd.DataFrame:
     return pd.DataFrame({
         'name': ['Max', 'Julia'],
         'age': [17, 18],
@@ -34,7 +34,7 @@ def test_data_frame_after_mapping() -> pd.DataFrame:
     })
 
 @pytest.fixture()
-def test_data_frame_after_default() -> pd.DataFrame:
+def data_frame_fixture_finished() -> pd.DataFrame:
     return pd.DataFrame({
         'name': ['Max', 'Julia'],
         'age': [17, 18],
@@ -50,4 +50,33 @@ def test_dataframe_nan_filler() -> pd.DataFrame:
         'street': ['Muster-Straße 1', 'Testgasse 2'],
         'money': [0.0, 0.0]
     })
+
+
+@pytest.fixture()
+def test_dataframe_check_dtype() -> pd.DataFrame:
+    return pd.DataFrame({
+        'name': ['Max', 'Julia'],
+        'age': [17., 18.],
+        'street': ['Muster-Straße 1', 'Testgasse 2'],
+        'money': ["0.0", "0.0"]
+    })
+
+
+@pytest.fixture()
+def test_dataframe_check_dtype_error() -> pd.DataFrame:
+    return pd.DataFrame({
+        'name': ['Max', 'Julia'],
+        'age': ['a', 18.],
+        'street': ['Muster-Straße 1', 'Testgasse 2'],
+        'money': ["0.0", "0.0"]
+    })
+
+@pytest.fixture()
+def dataframe_check_dataframe_fixture() -> pd.DataFrame:
+    return pd.DataFrame({
+        'name': ['Max', 'Julia'],
+        'age': [17., np.NAN],
+        'street': ['Muster-Straße 1', 'Testgasse 2'],
+    })
+
 
