@@ -1,0 +1,32 @@
+on:
+  push:
+
+name: Create PreRelease
+
+jobs:
+  runs-on: self_hosted
+  steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2
+    - name: Set latest Tag
+      id: set_latest_tag
+      run: |
+        latest_version=$(sed -n 's/version=*//p' setup.py | cut -d ',' -f1)
+        latest_version=$(echo $latest_version | tr -d \' )
+        echo "${latest_version}"
+        latest_version="v${latest_version}"
+        echo latest_version="${latest_version}" >> GITHUB_OUTPUT
+        echo branch_nam=${{ github.head_ref }} >> $GITHUB_OUTPUT
+    - name: Create PreRelease
+      id: create_prerelease
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{steps.set_latest_tag.outputs.latest_version }}
+        release_name: ${{ steps.set_latest_tag.outputs.latest_version }}
+        body: |
+          Following ticket is included:
+          ${{ steps.set_latest_tag.outputs.branch_name }}
+          draft: false
+          prerelease: true
