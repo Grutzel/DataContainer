@@ -4,4 +4,35 @@ on:
 name: Create Release
 
 jobs:
-  runs-on: self-hosted
+  create_release:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Get PreReleases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS='/' read -r OWNER REPO <<< "$GITHUB_REPOSITORY"
+    
+          echo "Owner: $OWNER"
+          echo "Repository: $REPO"
+          
+          QUERY='
+              query {
+                repository(owner: "'$OWNER'", name: "'$REPO'") {
+                  releases(last: 10, orderBy: {field: CREATED_AT, direction: DESC}) {
+                    edges {
+                      node {
+                        name
+                        tagName
+                        isPrerelease
+                      }
+                    }
+                  }
+                }
+              }'
+    
+              response=$(curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -d "{ \"query\": \"$QUERY\" }" https://api.github.com/graphql)
+    
+              echo "$response"
