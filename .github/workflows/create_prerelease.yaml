@@ -4,7 +4,7 @@ on:
 name: Create PreRelease
 
 jobs:
-  runs-on: self_hosted
+  runs-on: self-hosted
   steps:
     - name: Checkout Code
       uses: actions/checkout@v2

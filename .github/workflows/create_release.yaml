@@ -1,0 +1,7 @@
+on:
+  push:
+
+name: Create Release
+
+jobs:
+  runs-on: self-hosted
