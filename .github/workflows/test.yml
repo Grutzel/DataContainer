@@ -1,0 +1,12 @@
+on:
+  workflow_call:
+
+name: echo
+
+jobs:
+  echo_hello_workd:
+    runs-on: self-hosted
+    steps:
+      - name: Echo
+        run:
+          echo "Hello World"
